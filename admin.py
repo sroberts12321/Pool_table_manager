@@ -1,6 +1,7 @@
 import time
 import datetime
 import os
+import json
 
 #color.RED + "" + color.END
 
@@ -15,12 +16,29 @@ class color:
    UNDERLINE = '\033[4m'
    END = '\033[0m'
 
+def jsonDefault(object):
+	return object.__dict__
+
+def recorder(dictionary):
+	to_write = json.dumps(dictionary, default=jsonDefault)
+	now = datetime.datetime.now().strftime("%m-%d-%Y")
+	with open(f"{now}.json", "a") as file:
+		file.write(to_write)
+
+class Status:
+	def __init__(self, name, start_time, end_time, cost):
+		self.pool_table = name
+		self.start_time = start_time
+		self.end_time = end_time
+		self.cost = cost
+
 class PoolTable:
 	def __init__(self):
 		self.occupied = False
 		self.name = ""
 		self.format_start = None
 		self.number = ""
+		self.rate = 30
 
 	def __repr__(self):
 		return ('%s : %s' % (self.name, self.availability()))
@@ -39,49 +57,80 @@ class PoolTable:
 	def check_in(self, start_time):
 		self.start_time = start_time
 		self.end_time = time.time()
+		self.format_end = datetime.datetime.now().strftime("%H:%M")
 		self.occupied = False
 		if self.start_time is None:
 			print("\t\t  That table has not been checked out")
 			enter_to_continue()
 		else:
-			self.elapsed = round((self.end_time - self.start_time), 2)
+			self.elapsed = round((self.end_time - self.start_time), 2)	
+
+			if self.elapsed >= 3600:
+				self.hour = round((self.elapsed/60)/60, 2)
+				print(f"\t\t     {self.name} successfully checked in")
+				print(f"\t\t  {self.name} was checked out for " + str(self.hour) + " hours")
+				self.cost = round((self.rate * self.hour), 2)
+				print(f"\t\t      Your total cost is ${str(self.cost)}")
+
+				self.writer = Status(self.name, self.format_start, self.format_end, self.cost)
+				list_of_statuses.append(self.writer)
+				self.converter = jsonDefault(self.writer)
+				recorder(self.converter)
+
+
+				enter_to_continue()
+			elif self.elapsed >= 60:
+				self.min = round(self.elapsed/60, 2)
+				print(f"\t\t     {self.name} successfully checked in")
+				print(f"\t\t  {self.name} was checked out for " + str(self.min) + " minutes")
+				self.cost = round(((self.rate/60) * self.min), 2)
+				print(f"\t\t      Your total cost is ${str(self.cost)}")
+
+				self.writer = Status(self.name, self.format_start, self.format_end, self.cost)
+				list_of_statuses.append(self.writer)
+				self.converter = jsonDefault(self.writer)
+				recorder(self.converter)
+
+
+				enter_to_continue()
+			else:
+				print(f"\t\t     {self.name} successfully checked in")
+				print(f"\t\t  {self.name} was checked out for " + str(self.elapsed) + " seconds")
+				self.cost = round((((self.rate/60)/60) * self.elapsed), 2)
+				print(f"\t\t      Your total cost is ${str(self.cost)}")
+
+				self.writer = Status(self.name, self.format_start, self.format_end, self.cost)
+				# list_of_statuses.append(self.writer)
+				self.converter = jsonDefault(self.writer)
+				recorder(self.converter)
+
+
+				enter_to_continue()
 		self.start_time = None
 		self.format_start = None
-		
-		if self.elapsed >= 3600:
-			self.hour = round((self.elapsed/60)/60, 2)
-			print(f"\t\t  {self.name} successfully checked in")
-			print(f"\t\t  {self.name} was checked out for " + str(self.hour) + " hours")
-			enter_to_continue()
-		elif self.elapsed >= 60:
-			self.min = round(self.elapsed/60, 2)
-			print(f"\t\t  {self.name} successfully checked in")
-			print(f"\t\t  {self.name} was checked out for " + str(self.min) + " minutes")
-			enter_to_continue()
-		else:
-			print(f"\t\t  {self.name} successfully checked in")
-			print(f"\t\t  {self.name} was checked out for " + str(self.elapsed) + " seconds")
-			enter_to_continue()
 
 	def table_status(self, start_time):
 		self.start_time = start_time
 		self.now_time = time.time()
 		self.elapsed = round((self.now_time - self.start_time), 2)
 		
-		if self.elapsed >= 60:
+		if self.elapsed >= 3600:
+			self.hour = round((self.elapsed/60)/60, 2)
+			print(f"\t\t  {self.name} has been checked out for " + str(self.hour) + " hours")
+			self.cost = round((self.rate * self.hour), 2)
+			print(f"\t\t      Your cost right now is ${str(self.cost)}")
+			enter_to_continue()
+		elif self.elapsed >= 60:
 			self.min = round(self.elapsed/60, 2)
 			print( f"\t\t  {self.name} has been checked out for " + str(self.min) + " minutes\n\n")
+			self.cost = round(((self.rate/60) * self.min), 2)
+			print(f"\t\t      Your cost right now is ${str(self.cost)}")
 			enter_to_continue()
 		else:
 			print( f"\t\t  {self.name} has been checked out for " + str(self.elapsed) + " seconds\n\n")
+			self.cost = round((((self.rate/60)/60) * self.elapsed), 2)
+			print(f"\t\t      Your cost right now is ${str(self.cost)}")
 			enter_to_continue()
-
-		# if self.occupied == False:
-		# 	print( f"\t\t  {self.name} is available")
-		# 	enter_to_continue()
-		# elif self.occupied == True:
-		# 	print( f"\t\t  {self.name} is currently checked out!")
-		# 	enter_to_continue()
 
 	def availability(self):
 		if self.occupied == False:
@@ -89,9 +138,8 @@ class PoolTable:
 		elif self.occupied == True:
 			return f"{self.name} is checked out"
 
-
 def enter_to_continue():
-	input("\n\t\t    Press enter to continue")
+	input("\n\t\t\tPress "+color.PURPLE + "enter" + color.END+" to continue")
 
 def search_tables(name):
 	for table in all_tables:
@@ -105,24 +153,14 @@ def search_table_numbers(number):
 			return table
 		else:
 			pass
-
 #-------------------------------------------------------------------
 #  View
 #-------------------------------------------------------------------
-
 
 def line():
 	print("-----------------------------------------------------------------------------\n\n")
 def write():
  	pass
-def options():
-	print("-----------------------------------------------------------------------------")
-	print("------------------------------     Options     ------------------------------")
-	print("-----------------------------------------------------------------------------")
-	print("\t\t\t"+color.RED + "rent" + color.END+"         - rent a table")
-	print("\t\t\t"+color.RED + "check in" + color.END+"     - check in a table")
-	print("\t\t\t"+color.RED + "q" + color.END+"            - quit the program")
-	print("\t\t\t"+color.RED + "check status" + color.END+" - check how long a table has been rented")
 
 def table_format():
 	print("-----------------------------------------------------------------------------")
@@ -139,10 +177,18 @@ def table_format():
 				print("\t" + all_tables[index].name + "\t\t" + all_tables[index].availability() + "\t\t" + all_tables[index].format_start)
 			else:
 				print("\t" + all_tables[index].name + "\t" + all_tables[index].availability() + "\t\t" + all_tables[index].format_start)
-
+	print("-----------------------------------------------------------------------------")
+	print("------------------------------     Options     ------------------------------")
+	print("-----------------------------------------------------------------------------")
+	print("\t\t\t"+color.RED + "rent" + color.END+"     - rent a table")
+	print("\t\t\t"+color.RED + "check in" + color.END+" - check in a table")
+	print("\t\t\t"+color.RED + "report" + color.END+"   - show accumulated cost and time")
+	print("\t\t\t"+color.RED + "q" + color.END+"        - quit the program")
 #-------------------------------------------------------------------
 #  Controller
 #-------------------------------------------------------------------
+
+list_of_statuses = []
 
 count = 1
 
@@ -156,7 +202,6 @@ for obj in all_tables:
 while True:
 	os.system('clear')
 	table_format()
-	options()
 	line()
 	user_input = input("\t\t  What would you like to do?: ").lower()
 
@@ -170,7 +215,7 @@ while True:
 			line()
 			try:
 				check_out_input = str(input("\t\t  What table would you like to rent? ")).lower()
-				if len(check_out_input) == 1:
+				if len(check_out_input) == 1 or len(check_out_input) == 2:
 					 table_to_check_out = search_table_numbers(check_out_input)
 				else:
 					table_to_check_out = search_tables(check_out_input)
@@ -183,7 +228,7 @@ while True:
 			line()
 			try:
 				check_in_input = str(input("\t\t  What table would you like to check in? ")).lower()
-				if len(check_in_input) == 1:
+				if len(check_in_input) == 1 or len(check_in_input) == 2:
 					table_to_check_in = search_table_numbers(check_in_input)
 				else:
 					table_to_check_in = search_tables(check_in_input)
@@ -192,10 +237,10 @@ while True:
 				print("\t\t  That table isn't checked out")
 				enter_to_continue()
 
-		elif user_input == "check status" or user_input == "check table status" or user_input == "status":
+		elif user_input == "report" or user_input == "check status" or user_input == "status":
 			line()
-			check_status_input = str(input("\t\t  Check the status of what table? ")).lower()
-			if len(check_status_input) == 1:
+			check_status_input = str(input("\t\t  Show report for which table? ")).lower()
+			if len(check_status_input) == 1 or len(check_status_input) == 2:
 				table_to_check_status = search_table_numbers(check_status_input)
 			else:
 				table_to_check_status = search_tables(check_status_input)
@@ -210,23 +255,9 @@ while True:
 			except:
 				print("\t\t  Your input was invalid")
 				enter_to_continue()
-
-
-		elif user_input == "options":
-			options()
-			line()
 	except:
-		print("\t\t  Your input was invalid")
-
-
-
- 
-
-
-
-
-
-
+		print("\n\t\t\t Your input was invalid")
+		enter_to_continue()
 
 # print("-------------------------------------------------------------------")
 # print("Pool Table Number")
